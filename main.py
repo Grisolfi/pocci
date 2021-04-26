@@ -1,6 +1,8 @@
 from bottle import get, post, request, run
 from tool.auth_helper import *
+from tool.repo import *
 from os import environ as ENV
+from shutil import rmtree
 import requests
 import time
 
@@ -30,15 +32,33 @@ def initiate_check_run(payload, installation_id, repository_full_name):
       'started_at' : f'{datetime.now().replace(microsecond=0).isoformat()}Z'
     }
 
+    auth = InstallAuth(installation_id)
+
     updated_check_run = requests.patch(
-        auth=InstallAuth(installation_id),
+        auth=auth,
         url=endpoint,
         json=data
     )
     updated_check_run.raise_for_status()
 
-    print("PROCESSING......")
-    time.sleep(30)
+    print(f'Cloning Repository {repository_full_name}')
+
+    temp_dir, repo = clone_to_temp(
+        full_repo_name=repository_full_name,
+        x_token=auth.token,
+        ref=payload['check_run']['head_sha']
+    )
+    
+    print(f'Starting action with repo source code')
+    time.sleep(10)
+
+    # Do Something with repository source code
+    # HERE
+
+    try:
+        shutil.rmtree(temp_dir)
+    except FileNotFoundError:
+        pass
 
     data.update({
         'status': 'completed',
